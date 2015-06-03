@@ -30,15 +30,19 @@ class UrlPool(Base):
     url = Column(String, primary_key=True)
     level = Column(Integer)
     scanned = Column(Boolean)
+    code = Column(String)
+    name = Column(String)
 
 class District(Base):
     __tablename__ = 'district'
     code = Column(String, primary_key=True)
-    level = Column(Integer)
     name = Column(String)
+    parent_code = Column(String)
+    parent_name = Column(String)
     page_url = Column(String)
     href = Column(String)
     class_code =Column(String)
+    level = Column(Integer)
 
 url_pool = []
 
@@ -64,13 +68,16 @@ def scanHomePage():
         url_pool = UrlPool(
             url=district.href,
             level=1,
-            scanned=False)
+            scanned=False,
+            code=m.group('code'),
+            name=m.group('name'))
         db.add(district)
         db.add(url_pool)
     db.commit()
 
 
-def analyse(url, current_level):
+def analyse(pool):
+    url=pool.url
     text = getText(url)
 
     matches = re.finditer(
@@ -80,15 +87,19 @@ def analyse(url, current_level):
         new_url = url[:url.rindex('/')] + '/' + m.group('url')
         district = District(
             code=m.group('code'),
-            level=current_level + 1,
             name=m.group('name'),
+            parent_code=pool.code,
+            parent_name=pool.name,
+            level=pool.level+1,
             page_url=url,
             href=new_url
         )
         url_pool = UrlPool(
             url=district.href,
-            level=current_level + 1,
-            scanned=False)
+            level=pool.level+1,
+            scanned=False,
+            code=m.group('code'),
+            name=m.group('name'))
         db.add(district)
         db.add(url_pool)
     else:
@@ -99,9 +110,11 @@ def analyse(url, current_level):
         for m in matches:
             district = District(
                 code=m.group('code'),
-                level=current_level + 1,
                 name=m.group('name'),
-                page_url=url,
+                parent_code=pool.code,
+                parent_name=pool.name,
+                level=pool.level+1,
+                page_url=pool.url,
                 class_code=m.group('class_code')
             )
             db.add(district)
@@ -114,7 +127,7 @@ while true:
     if url_pool is None:
         break
     print url_pool.level, url_pool.url
-    analyse(url_pool.url, url_pool.level)
+    analyse(url_pool)
     url_pool.scanned = True
     db.add(url_pool)
     db.commit()
