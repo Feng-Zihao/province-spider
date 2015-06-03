@@ -18,7 +18,6 @@ from sqlalchemy.types import *
 
 
 engine = create_engine('sqlite:///data.db')
-engine.echo = True
 Session = sessionmaker(bind=engine)
 
 db = Session()
@@ -29,6 +28,7 @@ Base = declarative_base()
 class UrlPool(Base):
     __tablename__ = 'url_pool'
     url = Column(String, primary_key=True)
+    level = Column(Integer)
     scanned = Column(Boolean)
 
 class District(Base):
@@ -63,16 +63,14 @@ def scanHomePage():
         )
         url_pool = UrlPool(
             url=district.href,
+            level=1,
             scanned=False)
-        try:
-            db.add(district)
-            db.add(url_pool)
-            db.commit()
-        except:
-            pass
+        db.add(district)
+        db.add(url_pool)
+    db.commit()
 
 
-def analyse(url):
+def analyse(url, current_level):
     text = getText(url)
 
     matches = re.finditer(
@@ -80,15 +78,34 @@ def analyse(url):
                 u"<td><a href='([^.]*).html'>(?P<name>[^<]+)</a>", text)
     for m in matches:
         new_url = url[:url.rindex('/')] + '/' + m.group('url')
-        url_pool.append(new_url)
-        items.append((m.group('code'), m.group('name')))
+        district = District(
+            code=m.group('code'),
+            level=current_level + 1,
+            name=m.group('name'),
+            page_url=url,
+            href=new_url
+        )
+        url_pool = UrlPool(
+            url=district.href,
+            level=current_level + 1,
+            scanned=False)
+        db.add(district)
+        db.add(url_pool)
     else:
         matches = re.finditer(
             u"<td>(?P<code>[0-9]{12})</td>"+
-            u"<td>(?P<class>[0-9]{3})</td>"+
+            u"<td>(?P<class_code>[0-9]{3})</td>"+
             u"<td>(?P<name>[^<]+)</td>", text)
         for m in matches:
-            items.append((m.group('code'), m.group('name')))
+            district = District(
+                code=m.group('code'),
+                level=current_level + 1,
+                name=m.group('name'),
+                page_url=url,
+                class_code=m.group('class_code')
+            )
+            db.add(district)
+    db.commit()
 
 
 #scanHomePage()
@@ -96,10 +113,9 @@ while true:
     url_pool = db.query(UrlPool).filter_by(scanned=False).first()
     if url_pool is None:
         break
-    url = url_pool.url
-    print url
-    analyse(url)
+    print url_pool.level, url_pool.url
+    analyse(url_pool.url, url_pool.level)
     url_pool.scanned = True
-    #db.add(url_pool)
+    db.add(url_pool)
     db.commit()
 

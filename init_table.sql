@@ -2,6 +2,7 @@
 
 create table url_pool(
 	url string primary key,
+	level integer,
 	scanned boolean
 );
 
