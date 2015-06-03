@@ -17,12 +17,10 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.types import *
 
 
-db = create_engine('sqlite:///data.sqlite')
+engine = create_engine('sqlite:///data.sqlite', echo=True)
+Session = sessionmaker(bind=engine)
 
-db.echo = True
-
-metadata = MetaData(db)
-
+db = Session()
 
 Base = declarative_base()
 
