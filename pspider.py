@@ -8,6 +8,39 @@ gevent.monkey.patch_all()
 import re
 import requests
 
+from sqlalchemy import *
+# -*- coding: utf-8 -*-
+
+from sqlalchemy import Column, create_engine
+from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.types import *
+
+
+db = create_engine('sqlite:///data.sqlite')
+
+db.echo = True
+
+metadata = MetaData(db)
+
+
+Base = declarative_base()
+
+
+class UrlPool(Base):
+    __tablename__ = 'url_pool'
+    url = Column(String, primary_key=True)
+    scanned = Column(Boolean)
+
+class District(Base):
+    __tablename__ = 'district'
+    code = Column(String, primary_key=True)
+    level = Column(Integer)
+    name = Column(String)
+    in_url = Column(String)
+    href = Column(String)
+    class_code =Column(String)
+
 url_pool = []
 
 # code, name
@@ -46,10 +79,10 @@ def analyse(url):
             items.append((m.group('code'), m.group('name')))
 
 
-
 while url_pool:
     print len(url_pool)
     url = url_pool[0]
+    print url
     url_pool = url_pool[1:]
     analyse(url)
 
